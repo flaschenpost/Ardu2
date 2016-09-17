@@ -3,11 +3,23 @@
 #include <Servo.h> 
 
 
+#define LED_LEFT = 0;
+#define LED_RIGHT= 1;
+#define GREEN=0;
+#define RED=1;
+
 const unsigned int RECV_PIN = 12; //define input pin on Arduino
 const unsigned int pinLeftDigital =  8; 
 const unsigned int pinRightDigital =  7; 
 const unsigned int pinLeftAnalog  =  6;
 const unsigned int pinRightAnalog  = 5;
+
+const unsigned int LEDs[2][2];
+
+const unsigned int pinRightGreenLED = A0;
+const unsigned int pinRightRedLED = A1;
+const unsigned int pinLeftGreenLED=2;
+const unsigned int pinLeftRedLED=3;
 
 const unsigned int pinServo = 10;
 
@@ -55,7 +67,19 @@ int posServo = straightServo;    // variable to store the servo position
 
 unsigned long servoStarted = 5;
 int oldServo = 0;
- 
+
+#define MODE_OFF=0
+#define MODE_GREEN=1
+#define MODE_RED=2
+#define MODE_BLINK=3
+#define MODE_BOTH=4
+
+
+unsigned int leftLedMode=MODE_OFF;
+unsigned int rightLedMode=MODE_OFF;
+
+unsigned long lastSwitch=0;
+
 void setup() 
 { 
   Serial.begin(9600);
@@ -64,8 +88,11 @@ void setup()
   pinMode(pinLeftAnalog, OUTPUT);
   analogWrite(pinLeftDigital, 0);
   analogWrite(pinLeftAnalog, 0);
-  pinMode (pinRightDigital, OUTPUT);
-  pinMode (pinRightAnalog, OUTPUT);
+  int leds[] = {pinRightGreenLED, pinRightRedLED, pinLeftGreenLED, pinLeftRedLED};
+  for (const int &led : leds){
+    pinMode(led, OUTPUT);
+    digitalWrite(led, 0);
+  }
   myservo.attach(pinServo);  // attaches the servo on pinServo to the servo object 
   servoStarted=millis()+1;
   myservo.write(posServo);
@@ -81,7 +108,9 @@ void evalKey(const unsigned long key){
       
       case KEEP:
         //Serial.print("KEEP");Serial.println(oldDelta, DEC);
-        evalKey(oldKey);
+        if(oldKey != 0){
+          evalKey(oldKey);
+        }
         return;
         break;
       case OK:
@@ -118,7 +147,7 @@ void evalKey(const unsigned long key){
         keep = 1;
         deltaServo=0;
         break;
-/*      case KEY6:
+      /*case KEY6:
         wheelExtra = -2;
         keep=1;
         break;
@@ -133,6 +162,7 @@ void evalKey(const unsigned long key){
         */
       default:
         Serial.print("?");Serial.println(key,HEX);
+        oldKey = 0;
        return;
     }
     if(key != KEEP){
@@ -156,6 +186,10 @@ void evalKey(const unsigned long key){
     }
     speed = (signed long)speed*(signed long)keep + (signed long)delta*(signed long)STEP*(signed long)dir;
 
+    if(speed == 0){
+      leftLedMode=MODE_OFF;
+      rightLedMode=MODE_OFF;
+    }
     if(speed > MAX){
       speed = MAX;
     }
@@ -182,6 +216,7 @@ void evalKey(const unsigned long key){
       else{
         speedRight = (long)speed * (95-alpha) / (95 + alpha);
       }
+      
     }
     if(posServo > straightServo + stepServo){
       unsigned long alpha = posServo - straightServo;
@@ -190,6 +225,16 @@ void evalKey(const unsigned long key){
         speedLeft = 0; 
       }
       speedLeft = (long)speed * (95-alpha)/(95+alpha);
+    }
+    if(posServo <= straightServo - stepServo){
+      leftLedMode = MODE_BLINK;
+      rightLedMode=MODE_GREEN;
+      lastSwitch=0;
+    }
+    if(posServo >= straightServo + stepServo){
+      leftLedMode = MODE_GREEN;
+      rightLedMode=MODE_BLINK;
+      lastSwitch=0;
     }
     Serial.print("posServo=");Serial.print(posServo);Serial.print("speedLeft=");Serial.print(speedLeft, HEX);Serial.print("speedRight=");Serial.println(speedRight, HEX);
     if(posServo != oldServo && posServo > 0 && posServo < 180){
@@ -220,6 +265,10 @@ void evalKey(const unsigned long key){
       digitalWrite(pinRightDigital, HIGH);
       //Serial.println("high");
     }
+}
+
+void setLED(int nr, int mode){
+  
 }
 
 void loop() {
