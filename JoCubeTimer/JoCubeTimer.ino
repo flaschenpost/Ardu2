@@ -3,9 +3,9 @@
 #include <DS3231.h>
 
 
-#define linksPAD  A1
-#define OKPAD    A2
-#define rechtsPAD A3
+#define OKPAD    A1
+#define RECHTSPAD A2
+#define LINKSPAD  A3
 
 #define SETTINGSCHALTER A0
 
@@ -31,7 +31,7 @@
 
 #define AUTOMATISCH_ABSCHALTEN 20000l
 
-unsigned long bestenListe[BESTENLAENGE+1] = {0};
+unsigned long bestenListe[BESTENLAENGE + 1] = {0};
 
 volatile boolean statusWechsel = 0;
 
@@ -44,7 +44,7 @@ enum Status {BEREIT, START1, ANSCHAUEN, PIEP, START2, LOESEN, ANZEIGE, ZUSPAET, 
 // in welchem SettingStatus sind wir?
 enum SettingStatus {TOP10} settingStatus = TOP10;
 
-unsigned int referenzLinks, referenzRechts, referenzOK;     //reference values to remove offset
+int referenzLinks, referenzRechts, referenzOK;     //reference values to remove offset
 
 #define   BACKLIGHT_PIN  7
 LiquidCrystal lcd(9, 8, 7, 6, 5, 4, BACKLIGHT_PIN, POSITIVE );
@@ -52,7 +52,7 @@ LiquidCrystal lcd(9, 8, 7, 6, 5, 4, BACKLIGHT_PIN, POSITIVE );
 // Init the DS3231 using the hardware interface
 DS3231  rtc(SDA, SCL);
 
-byte sensorSchwelle = 30;
+byte sensorSchwelle = 50;
 
 byte aktionLinks = 0;
 byte statusLinks = 1;
@@ -83,7 +83,7 @@ char *loeschen    = "L.SCHEN??      ";
 unsigned long letzteAktion = 0;
 byte schlaeft = 0;
 
-byte istSettings=0;
+byte istSettings = 0;
 
 const char* statusText(Status thestatus) {
   switch (thestatus) {
@@ -103,16 +103,18 @@ void printstatus(Status thestatus) {
   lcd.print(statusText(thestatus));
 }
 
-void printzeit(const char*text, unsigned long zeit, byte zeile=1) {
+void printzeit(const char*text, unsigned long zeit, byte zeile = 1) {
   if (text > 0) {
     lcd.setCursor(0, zeile);
     lcd.print(text);
   }
   int laenge = 1;
+  lcd.setCursor(8, zeile);
+  lcd.print("      ");
   unsigned long sekunden = zeit / 1000;
   if (sekunden >= 1000) {
     laenge = 3;
-    sekunden=999;
+    sekunden = 999;
   }
   else if (sekunden >= 100) {
     laenge = 3;
@@ -123,55 +125,55 @@ void printzeit(const char*text, unsigned long zeit, byte zeile=1) {
   lcd.setCursor(12 - laenge, zeile);
   lcd.print(sekunden);
   lcd.print(",");
-  int teil = (zeit % 1000l)/10;
-  lcd.print(teil);lcd.print(" ");
+  int teil = (zeit % 1000l) / 10;
+  lcd.print(teil); lcd.print(" ");
 }
 
 
 
-byte zeitEinfuegen(unsigned long zeit){
-  byte eplatz =0;
-  
-  for(byte i=0; i<=BESTENLAENGE; i++){
-    if((bestenListe[i] == 0) || (bestenListe[i] > zeit)){
-      eplatz = i+1;
+byte zeitEinfuegen(unsigned long zeit) {
+  byte eplatz = 0;
+
+  for (byte i = 0; i <= BESTENLAENGE; i++) {
+    if ((bestenListe[i] == 0) || (bestenListe[i] > zeit)) {
+      eplatz = i + 1;
       break;
     }
   }
-  if(eplatz == 0){
+  if (eplatz == 0) {
     return 0;
   }
 
-  for(byte i=BESTENLAENGE; i>= eplatz; i--){
-    bestenListe[i] = bestenListe[i-1];
+  for (byte i = BESTENLAENGE; i >= eplatz; i--) {
+    bestenListe[i] = bestenListe[i - 1];
   }
-  bestenListe[eplatz-1] = zeit;
-  if(eplatz == 1){
-    printzeit("To BEAT: ",zeit , 3);
+  bestenListe[eplatz - 1] = zeit;
+  if (eplatz == 1) {
+    printzeit("To BEAT: ", zeit , 3);
   }
   return eplatz;
 }
-  
-void loeschePlatz(byte eplatz){
-  if(eplatz==0){
+
+void loeschePlatz(byte eplatz) {
+  if (eplatz == 0) {
     return;
   }
-  for (int i=eplatz-1; i<=BESTENLAENGE-1; i++){
-    bestenListe[i] = bestenListe[i+1];
+  for (int i = eplatz - 1; i <= BESTENLAENGE - 1; i++) {
+    bestenListe[i] = bestenListe[i + 1];
   }
   bestenListe[BESTENLAENGE] = 0;
-  if(eplatz == 1){
-    printzeit("To BEAT: ",bestenListe[0], 3);    
+  if (eplatz == 1) {
+    printzeit("To BEAT: ", bestenListe[0], 3);
   }
 }
 
-void zeigeTop10(){
+void zeigeTop10() {
   char* comment = "Platz  1";
-  for(byte i=0; i<4; i++){
-    byte row = (i+listeOben) % BESTENLAENGE;
-    comment[6]=' ';
-    comment[7]='1'+row;
-    if(row == 9){
+  for (byte i = 0; i < 4; i++) {
+    byte row = (i + listeOben) % BESTENLAENGE;
+    comment[6] = ' ';
+    comment[7] = '1' + row;
+    if (row == 9) {
       comment[6] = '1';
       comment[7] = '0';
     }
@@ -185,10 +187,10 @@ void auswerteSettingsPins(byte links, byte rechts, byte ok) {
   switch (settingStatus) {
     case TOP10:
       if (links == 0) {
-        listeOben = (BESTENLAENGE+listeOben-1)%BESTENLAENGE;
+        listeOben = (BESTENLAENGE + listeOben - 1) % BESTENLAENGE;
       }
       if (rechts == 0) {
-        listeOben = (BESTENLAENGE+listeOben+1)%BESTENLAENGE;
+        listeOben = (BESTENLAENGE + listeOben + 1) % BESTENLAENGE;
       }
       zeigeTop10();
       break;
@@ -229,23 +231,27 @@ void auswerteSpielePins(unsigned long jetzt, byte links, byte rechts) {
         anzeigeLoesen = startLoesen + AKTUALISIEREN;
       }
       break;
-      break;
     case LOESEN:
       if (links == 0 && rechts == 0) {
         status = ANZEIGE;
         loeseZeit = jetzt - startLoesen;
         platz = zeitEinfuegen(loeseZeit);
-        if(platz > 0){
-          lcd.setCursor(0,2);
+        lcd.setCursor(0, 2);
+        if (platz > 0) {
           lcd.print("Platz: ");
           lcd.print(platz);
         }
+        else {
+          lcd.print("          ");
+        }
+
         statusWechsel = 1;
         sperrZeit = jetzt + 500;
-        
+        status = BEREIT;
+      }
+
         //printzeit("FERTIG!",loeseZeit);
         //Serial.println("LOESEN->ANZEIGE");
-      }
       break;
     case ANZEIGE:
       if (links == 0 && rechts == 0 && jetzt > sperrZeit) {
@@ -259,32 +265,36 @@ void auswerteSpielePins(unsigned long jetzt, byte links, byte rechts) {
 
 void setup() {
   lcd.backlight();
-  lcd.begin(16,4);
+  lcd.begin(16, 4);
   // Initialize the rtc object
   rtc.begin();
-  startloesen[7]=239;
-  loesen[1]=239;       printstatus(BEREIT);
-  geloest[3]=239;
-  loeschen[1]=239;     referenzLinks = ADCTouch.read(linksPAD, 100);    //create reference values to
+  startloesen[7] = 239;
+  loesen[1] = 239;
+  geloest[3] = 239;
+  loeschen[1] = 239;
+  printstatus(BEREIT);
+  referenzLinks = ADCTouch.read(LINKSPAD, 100);  //create reference values to
 
-  referenzRechts = ADCTouch.read(rechtsPAD, 100);    //account for the capacitance of the pad
+  referenzRechts = ADCTouch.read(RECHTSPAD, 100);    //account for the capacitance of the pad
 
   referenzOK = ADCTouch.read(OKPAD, 100);
 
-  //lcd.setCursor(0,3);lcd.print(referenzLinks);
-  //lcd.setCursor(8,3);lcd.print(referenzRechts);
+  lcd.setCursor(0,0);lcd.print(referenzLinks);
+  lcd.setCursor(0,1);lcd.print(referenzRechts);
+  lcd.setCursor(0,2);lcd.print(referenzOK);
 
-  delay(200);
-  referenzLinks = ADCTouch.read(linksPAD, 200);    //create reference values to
-  referenzRechts = ADCTouch.read(rechtsPAD, 200);    //account for the capacitance of the pad
+  delay(2000);
+  referenzLinks = ADCTouch.read(LINKSPAD, 200);    //create reference values to
+  referenzRechts = ADCTouch.read(RECHTSPAD, 200);    //account for the capacitance of the pad
   referenzOK = ADCTouch.read(OKPAD, 200);    //account for the capacitance of the pad
 
-  //lcd.setCursor(0,3);lcd.print(referenzLinks);
-  //lcd.setCursor(8,3);lcd.print(referenzRechts);
+  lcd.setCursor(0,0);lcd.print(referenzLinks);
+  lcd.setCursor(0,1);lcd.print(referenzRechts);
+  lcd.setCursor(0,2);lcd.print(referenzOK);
 
   referenzLinks += sensorSchwelle;
   referenzRechts += sensorSchwelle;
-  referenzOK += sensorSchwelle;
+  referenzOK += sensorSchwelle/3;
   delay(1000);
 
   pinMode(SETTINGSCHALTER, INPUT);
@@ -302,16 +312,16 @@ void beep2() {
   tone(LAUTSPRECHERPIN, BEEP2_FREQUENZ, BEEP2_LAENGE);
 }
 
-void showzeit(){
-  
-  lcd.setCursor(0,3);
-  
+void showzeit() {
+
+  lcd.setCursor(0, 3);
+
   // Send date
   lcd.print(rtc.getDateStr(FORMAT_XS));
   lcd.print("T");
   // Send zeit
   lcd.print(rtc.getTimeStr(FORMAT_LONG));
-    
+
 }
 
 int lastzeit = 0;
@@ -334,108 +344,118 @@ void beep4() {
   }
 }
 
-inline void pruefeWachauf(unsigned long jetzt){
-  if(schlaeft){
-    schlaeft=0;
+inline void pruefeWachauf(unsigned long jetzt) {
+  if (schlaeft) {
+    schlaeft = 0;
     //lcd.display();
     //lcd.setCursor(1,1);
   }
-  letzteAktion=jetzt;
+  letzteAktion = jetzt;
 }
 
 void loop() {
   unsigned long jetzt = millis();
-
+  /*
+    int lval = ADCTouch.read(LINKSPAD, 100);
+    int rval = ADCTouch.read(RECHTSPAD, 100);
+    int oval = ADCTouch.read(OKPAD, 100);
+    lcd.setCursor(0,0);lcd.print("L ");lcd.print(lval);lcd.print(" ");lcd.print(lval-referenzLinks);lcd.print("  ");
+    lcd.setCursor(0,1);lcd.print("R ");lcd.print(rval);lcd.print(" ");lcd.print(rval-referenzRechts);lcd.print("  ");
+    lcd.setCursor(0,2);lcd.print("O ");lcd.print(oval);lcd.print(" ");lcd.print(oval-referenzOK);lcd.print("  ");
+    delay(250);
+    return;
+  // */
   aktionLinks = 0;
   aktionRechts = 0;
-  
-  if( (istSettings==1 || status == ANZEIGE) && platz > 0){
-    int val = ADCTouch.read(OKPAD, 100);
-    int valueOK = (val < referenzOK);
-    if(valueOK != statusOK){
+  aktionOK = 0;
+
+  if ( (istSettings == 1 || status == ANZEIGE) && platz > 0) {
+    int wert = ADCTouch.read(OKPAD, 70);
+    int valueOK = (wert < referenzOK);
+    if (valueOK != statusOK) {
       aktionOK = 1;
       blockiertOK = jetzt + BLOCKZEIT;
       statusOK = valueOK;
     }
-    if(! valueOK && istSettings==0){
+    if (! valueOK && istSettings == 0) {
       printstatus(LOESCHEN);
       delay(500);
-      val = ADCTouch.read(OKPAD, 100);
-      lcd.setCursor(8,0);lcd.print(val);
-      if(val > referenzOK){
+      wert = ADCTouch.read(OKPAD, 70);
+      lcd.setCursor(8, 0); lcd.print(wert);
+      if (wert > referenzOK) {
         loeschePlatz(platz);
-        status=BEREIT;
+        status = BEREIT;
         printstatus(BEREIT);
       }
       pruefeWachauf(jetzt);
     }
   }
 
-  if(jetzt > blockiertLinks){
-    int val = ADCTouch.read(linksPAD,40);
-    int valuel = (val < referenzLinks);
-    if(valuel != statusLinks){
+  if (jetzt > blockiertLinks) {
+    int wert = ADCTouch.read(LINKSPAD, 40);
+    int wertLinks = (wert < referenzLinks);
+    if (wertLinks != statusLinks) {
       aktionLinks = 1;
       blockiertLinks = jetzt + BLOCKZEIT;
-      statusLinks = valuel;
+      statusLinks = wertLinks;
     }
     /*
-    lcd.setCursor(0,1);lcd.print(valuel);
-    lcd.setCursor(0,2);lcd.print(raisedl);
-    lcd.setCursor(0,3);lcd.print(val);
-    // */
+      lcd.setCursor(0,1);lcd.print(wertLinks);
+      lcd.setCursor(0,2);lcd.print(raisedl);
+      lcd.setCursor(0,3);lcd.print(wert);
+      // */
   }
-  if(jetzt > blockiertRechts){
-    int val = ADCTouch.read(rechtsPAD,40);
-    int valuer = (val < referenzRechts);
-    if(valuer != statusRechts){
+  if (jetzt > blockiertRechts) {
+    int wert = ADCTouch.read(RECHTSPAD, 40);
+    int wertRechts = (wert < referenzRechts);
+    if (wertRechts != statusRechts) {
       aktionRechts = 1;
       blockiertRechts = jetzt + BLOCKZEIT;
-      statusRechts = valuer;
+      statusRechts = wertRechts;
     }
     /*
-    lcd.setCursor(8,1);lcd.print(valuer);
-    lcd.setCursor(8,2);lcd.print(raisedr);
-    lcd.setCursor(8,3);lcd.print(val);
-    // */
+      lcd.setCursor(8,1);lcd.print(wertRechts);
+      lcd.setCursor(8,2);lcd.print(raisedr);
+      lcd.setCursor(8,3);lcd.print(wert);
+      // */
   }
 
-  if(digitalRead(SETTINGSCHALTER) == 0){
-    if(istSettings == 0){
+  if (digitalRead(SETTINGSCHALTER) == 0) {
+    if (istSettings == 0) {
       istSettings = 1;
       lcd.clear();
-      lcd.setCursor(15,0);lcd.print("S");
+      lcd.setCursor(15, 0); lcd.print("S");
       pruefeWachauf(jetzt);
       auswerteSettingsPins(statusLinks, statusRechts, statusOK);
       return;
     }
     istSettings = 1;
   }
-  if(digitalRead(SETTINGSCHALTER) == 1){
-    if(istSettings == 1){
+  if (digitalRead(SETTINGSCHALTER) == 1) {
+    if (istSettings == 1) {
       lcd.clear();
-      lcd.setCursor(15,0);lcd.print("P");
+      lcd.setCursor(15, 0); lcd.print("P");
       istSettings = 0;
       pruefeWachauf(jetzt);
-      statusWechsel=1;
+      statusWechsel = 1;
     }
   }
 
-  if(aktionLinks || aktionRechts){
+  if (aktionLinks || aktionRechts) {
     pruefeWachauf(jetzt);
-    if(istSettings){
+    if (istSettings) {
       auswerteSettingsPins(statusLinks, statusRechts, statusOK);
     }
-    else{
+    else {
       auswerteSpielePins(jetzt, statusLinks, statusRechts);
     }
   }
 
-  if(letzteAktion + AUTOMATISCH_ABSCHALTEN < jetzt){
+  if (letzteAktion + AUTOMATISCH_ABSCHALTEN < jetzt) {
     //lcd.noDisplay();
-    schlaeft=1;
-//    pinMode(7,OUTPUT);
-//    digitalWrite(7,1);
+    schlaeft = 1;
+    //    pinMode(7,OUTPUT);
+    //    digitalWrite(7,1);
   }
 
   if (statusWechsel) {
@@ -478,9 +498,9 @@ void loop() {
     status = BEREIT;
     endeAnschauen = 0;
   }
-  if(jetzt - lastzeit > 1000){
+  if (jetzt - lastzeit > 1000) {
     lastzeit = jetzt;
-   // showzeit();
+    // showzeit();
   }
-//  */
+  //  */
 }
